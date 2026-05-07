@@ -1,181 +1,416 @@
-import joblib
-
-from collections import defaultdict
-
-from tree_visualizer import TreeVisualizer
-
-
-classifier = joblib.load('models/classifier.pkl')
-
-predictor = joblib.load('models/predictor.pkl')
-
-cluster = joblib.load('models/cluster.pkl')
-
-anomaly = joblib.load('models/anomaly.pkl')
-
-optimizer = joblib.load('models/optimizer.pkl')
-
-
 class OfflineFinanceAI:
 
-    def __init__(self, income, expenses):
+    def __init__(self):
+        pass
 
-        self.income = income
-        self.expenses = expenses
 
-    def classify_expenses(self):
+    # =========================
+    # PERSONALITY ANALYSIS
+    # =========================
 
-        for item in self.expenses:
+    def detect_personality(
+        self,
+        expenses,
+        income
+    ):
 
-            prediction = classifier.predict(
-                [item['title']]
-            )
-
-            item['category'] = prediction[0]
-
-    def calculate_totals(self):
-
-        totals = defaultdict(float)
-
-        for item in self.expenses:
-
-            totals[item['category']] += item['amount']
-
-        return totals
-
-    def predict_future_spending(self):
-
-        prediction = predictor.predict([
-            [self.income]
-        ])
-
-        return round(prediction[0], 2)
-
-    def detect_personality(self, totals):
-
-        food = totals.get('food', 0)
-
-        shopping = totals.get('shopping', 0)
-
-        entertainment = totals.get(
-            'entertainment',
-            0
+        total_spending = sum(
+            e["amount"] for e in expenses
         )
 
-        savings = self.income - sum(
-            totals.values()
+        spending_ratio = (
+            total_spending / income
         )
 
-        cluster_id = cluster.predict([[
-            food,
-            shopping,
-            entertainment,
-            savings
-        ]])[0]
 
-        mapping = {
-            0: "Balanced",
-            1: "Saver",
-            2: "Luxury",
-            3: "Impulsive"
-        }
+        entertainment = 0
+        shopping = 0
+        essentials = 0
 
-        return mapping.get(
-            cluster_id,
-            "Unknown"
+
+        for expense in expenses:
+
+            title = expense["title"].lower()
+
+            amount = expense["amount"]
+
+
+            if (
+                "shopping" in title or
+                "amazon" in title
+            ):
+
+                shopping += amount
+
+
+            elif (
+                "movie" in title or
+                "netflix" in title or
+                "game" in title or
+                "entertainment" in title
+            ):
+
+                entertainment += amount
+
+
+            else:
+                essentials += amount
+
+
+        if shopping > income * 0.25:
+            return "Impulsive Shopper"
+
+        elif entertainment > income * 0.20:
+            return "Lifestyle Spender"
+
+        elif spending_ratio < 0.45:
+            return "Smart Saver"
+
+        elif spending_ratio > 0.85:
+            return "High Risk Spender"
+
+        return "Balanced"
+
+
+    # =========================
+    # FUTURE PREDICTION
+    # =========================
+
+    def predict_future_spending(
+        self,
+        expenses
+    ):
+
+        total = sum(
+            e["amount"] for e in expenses
         )
 
-    def detect_anomalies(self):
+        future_prediction = int(
+            total * 1.12
+        )
 
-        warnings = []
+        return future_prediction
 
-        for item in self.expenses:
 
-            result = anomaly.predict([
-                [item['amount']]
-            ])[0]
+    # =========================
+    # BUDGET OPTIMIZATION
+    # =========================
 
-            if result == -1:
+    def optimize_budget(
+        self,
+        expenses,
+        income
+    ):
 
-                warnings.append(
-                    f"Unusual spending detected: "
-                    f"{item['title']}"
+        optimized = {}
+
+        total_after_optimization = 0
+
+
+        for expense in expenses:
+
+            title = expense["title"].lower()
+
+            amount = expense["amount"]
+
+
+            # SMART REDUCTIONS
+
+            if (
+                "shopping" in title or
+                "amazon" in title
+            ):
+
+                optimized_amount = int(
+                    amount * 0.70
                 )
 
-        return warnings
 
-    def optimize_budget(self, totals):
+            elif (
+                "food" in title or
+                "swiggy" in title or
+                "zomato" in title
+            ):
 
-        shopping = totals.get(
-            'shopping',
-            0
+                optimized_amount = int(
+                    amount * 0.85
+                )
+
+
+            elif (
+                "movie" in title or
+                "entertainment" in title
+            ):
+
+                optimized_amount = int(
+                    amount * 0.75
+                )
+
+
+            else:
+
+                optimized_amount = amount
+
+
+            optimized[title] = optimized_amount
+
+            total_after_optimization += (
+                optimized_amount
+            )
+
+
+        savings = (
+            income - total_after_optimization
         )
 
-        food = totals.get(
-            'food',
-            0
-        )
 
-        entertainment = totals.get(
-            'entertainment',
-            0
-        )
-
-        savings = self.income - sum(
-            totals.values()
-        )
-
-        recommendation = optimizer.predict([[
-            shopping,
-            food,
-            entertainment,
+        optimized["expected_savings"] = (
             savings
-        ]])[0]
-
-        optimized = {
-            "food": food,
-            "shopping": shopping,
-            "entertainment": entertainment,
-            "recommendation": recommendation
-        }
-
-        if recommendation == "reduce_shopping":
-
-            optimized['shopping'] *= 0.7
-
-        elif recommendation == "reduce_entertainment":
-
-            optimized['entertainment'] *= 0.75
+        )
 
         return optimized
 
-    def run(self):
 
-        self.classify_expenses()
+    # =========================
+    # SMART WARNING ENGINE
+    # =========================
 
-        totals = self.calculate_totals()
+    def detect_warnings(
+        self,
+        expenses,
+        income
+    ):
 
-        personality = self.detect_personality(
-            totals
-        )
+        warnings = []
 
-        prediction = self.predict_future_spending()
 
-        warnings = self.detect_anomalies()
+        CATEGORY_LIMITS = {
 
-        optimized = self.optimize_budget(
-            totals
-        )
+            "rent": 0.45,
 
-        tree = TreeVisualizer(
-            self.income,
-            optimized
-        ).generate()
+            "food": 0.18,
+
+            "groceries": 0.18,
+
+            "gym": 0.08,
+
+            "shopping": 0.20,
+
+            "entertainment": 0.12,
+
+            "travel": 0.20,
+
+            "medicine": 0.12,
+
+            "electricity": 0.08,
+
+            "wifi": 0.05,
+
+            "swiggy": 0.15,
+
+            "zomato": 0.15
+        }
+
+
+        for expense in expenses:
+
+            title = expense["title"].lower()
+
+            amount = expense["amount"]
+
+            category_found = False
+
+
+            for category, limit in CATEGORY_LIMITS.items():
+
+                if category in title:
+
+                    category_found = True
+
+                    threshold = (
+                        income * limit
+                    )
+
+
+                    if amount > threshold:
+
+                        warnings.append(
+
+                            f"High spending on "
+                            f"{category} "
+                            f"(₹{amount})"
+                        )
+
+                    break
+
+
+            # UNKNOWN CATEGORY
+
+            if not category_found:
+
+                if amount > income * 0.15:
+
+                    warnings.append(
+
+                        f"Unusual spending detected: "
+                        f"{title} "
+                        f"(₹{amount})"
+                    )
+
+        return warnings
+
+
+    # =========================
+    # TREE VISUALIZATION
+    # =========================
+
+    def generate_tree(
+        self,
+        income,
+        expenses
+    ):
+
+        nodes = [
+
+            {
+                "id": "income",
+
+                "data": {
+                    "label":
+                    f"Income ₹{income}"
+                },
+
+                "position": {
+                    "x": 450,
+                    "y": 0
+                }
+            }
+        ]
+
+
+        edges = []
+
+
+        x_position = 100
+
+
+        for index, expense in enumerate(expenses):
+
+            expense_id = (
+                f"expense-{index}"
+            )
+
+
+            nodes.append(
+
+                {
+                    "id": expense_id,
+
+                    "data": {
+
+                        "label":
+                        f'{expense["title"]}'
+                        f'\n₹{expense["amount"]}'
+                    },
+
+                    "position": {
+                        "x": x_position,
+                        "y": 220
+                    }
+                }
+            )
+
+
+            edges.append(
+
+                {
+                    "id":
+                    f"edge-{index}",
+
+                    "source":
+                    "income",
+
+                    "target":
+                    expense_id
+                }
+            )
+
+
+            x_position += 220
+
 
         return {
-            "personality": personality,
-            "future_prediction": prediction,
-            "warnings": warnings,
-            "optimized_budget": optimized,
-            "tree": tree
+
+            "nodes": nodes,
+
+            "edges": edges
+        }
+
+
+    # =========================
+    # MAIN ANALYSIS
+    # =========================
+
+    def analyze(
+        self,
+        income,
+        expenses
+    ):
+
+        personality = (
+            self.detect_personality(
+                expenses,
+                income
+            )
+        )
+
+
+        future_prediction = (
+
+            self.predict_future_spending(
+                expenses
+            )
+        )
+
+
+        optimized_budget = (
+
+            self.optimize_budget(
+                expenses,
+                income
+            )
+        )
+
+
+        warnings = (
+
+            self.detect_warnings(
+                expenses,
+                income
+            )
+        )
+
+
+        tree = self.generate_tree(
+            income,
+            expenses
+        )
+
+
+        return {
+
+            "personality":
+            personality,
+
+            "future_prediction":
+            future_prediction,
+
+            "optimized_budget":
+            optimized_budget,
+
+            "warnings":
+            warnings,
+
+            "tree":
+            tree
         }

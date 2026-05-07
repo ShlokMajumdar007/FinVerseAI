@@ -1,54 +1,91 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from pydantic import BaseModel
-from typing import List
 
 from analyzer import OfflineFinanceAI
 
+
 app = FastAPI()
 
+
+# =========================
+# CORS
+# =========================
+
 app.add_middleware(
+
     CORSMiddleware,
+
     allow_origins=["*"],
+
     allow_credentials=True,
+
     allow_methods=["*"],
+
     allow_headers=["*"],
 )
 
 
+# =========================
+# AI ENGINE
+# =========================
+
+ai = OfflineFinanceAI()
+
+
+# =========================
+# INPUT MODELS
+# =========================
+
 class Expense(BaseModel):
+
     title: str
-    amount: float
+
+    amount: int
 
 
 class FinanceInput(BaseModel):
-    income: float
-    expenses: List[Expense]
 
+    income: int
+
+    expenses: list[Expense]
+
+
+# =========================
+# ROUTES
+# =========================
 
 @app.get("/")
 def home():
 
     return {
-        "message": "Offline Finance AI Running"
+
+        "message":
+        "Offline Finance AI Running"
     }
 
 
 @app.post("/analyze")
 def analyze(data: FinanceInput):
 
-    expenses = []
+    expenses = [
 
-    for item in data.expenses:
+        {
+            "title": expense.title,
 
-        expenses.append({
-            "title": item.title,
-            "amount": item.amount
-        })
+            "amount": expense.amount
+        }
 
-    ai = OfflineFinanceAI(
+        for expense in data.expenses
+    ]
+
+
+    result = ai.analyze(
+
         data.income,
+
         expenses
     )
 
-    return ai.run()
+    return result
