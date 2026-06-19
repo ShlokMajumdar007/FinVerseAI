@@ -1,25 +1,35 @@
+import joblib
+
+
 class OfflineFinanceAI:
 
     def __init__(self):
-        pass
+
+        try:
+
+            self.model = joblib.load(
+                "models/budget_model.pkl"
+            )
+
+        except:
+
+            self.model = None
 
 
-    # ===================================
+    # =========================
     # CATEGORY DETECTION
-    # ===================================
+    # =========================
 
-    def categorize_expense(self, title):
+    def categorize(self, title):
 
         title = title.lower()
-
 
         categories = {
 
             "food": [
                 "food",
                 "swiggy",
-                "zomato",
-                "restaurant"
+                "zomato"
             ],
 
             "shopping": [
@@ -31,444 +41,217 @@ class OfflineFinanceAI:
             "entertainment": [
                 "movie",
                 "netflix",
-                "game",
-                "entertainment"
-            ],
-
-            "investment": [
-                "investment",
-                "stocks",
-                "mutual fund"
+                "game"
             ],
 
             "rent": [
-                "rent",
-                "house"
+                "rent"
             ],
 
             "travel": [
-                "travel",
-                "trip",
-                "uber"
+                "uber",
+                "ola",
+                "travel"
             ],
 
             "gym": [
-                "gym",
-                "fitness"
+                "gym"
+            ],
+
+            "investment": [
+                "stocks",
+                "sip",
+                "mutual"
             ]
         }
 
-
         for category, keywords in categories.items():
 
-            for keyword in keywords:
+            if any(
+                word in title
+                for word in keywords
+            ):
 
-                if keyword in title:
-
-                    return category
-
+                return category
 
         return "other"
 
 
-    # ===================================
-    # BUDGET BREAKDOWN
-    # ===================================
+    # =========================
+    # BREAKDOWN
+    # =========================
 
-    def generate_budget_breakdown(
+    def generate_breakdown(
         self,
         expenses
     ):
 
         breakdown = {}
 
-
         for expense in expenses:
 
-            category = self.categorize_expense(
+            category = self.categorize(
                 expense["title"]
             )
 
-            amount = expense["amount"]
+            breakdown[category] = (
 
+                breakdown.get(
+                    category,
+                    0
+                )
 
-            if category not in breakdown:
-
-                breakdown[category] = 0
-
-
-            breakdown[category] += amount
-
+                + expense["amount"]
+            )
 
         return breakdown
 
 
-    # ===================================
-    # PERSONALITY ANALYSIS
-    # ===================================
+    # =========================
+    # ML BUDGET PREDICTION
+    # =========================
 
-    def detect_personality(
+    def predict_budget(
         self,
-        total_spending,
-        income
-    ):
-
-        ratio = (
-            total_spending / income
-        )
-
-
-        if ratio > 0.85:
-
-            return "High Risk Spender"
-
-
-        elif ratio > 0.65:
-
-            return "Lifestyle Spender"
-
-
-        elif ratio > 0.45:
-
-            return "Balanced"
-
-
-        return "Smart Saver"
-
-
-    # ===================================
-    # FINANCIAL SCORE
-    # ===================================
-
-    def calculate_financial_score(
-
-        self,
-
         income,
-
-        spending_ratio,
-
-        savings
-    ):
-
-        score = 100
-
-
-        if spending_ratio > 0.8:
-
-            score -= 35
-
-
-        elif spending_ratio > 0.6:
-
-            score -= 20
-
-
-        elif spending_ratio > 0.4:
-
-            score -= 10
-
-
-        if savings < income * 0.2:
-
-            score -= 20
-
-
-        return max(score, 10)
-
-
-    # ===================================
-    # FUTURE SPENDING
-    # ===================================
-
-    def predict_future_spending(
-        self,
-        total_spending
-    ):
-
-        return int(
-            total_spending * 1.12
-        )
-
-
-    # ===================================
-    # BUDGET OPTIMIZATION
-    # ===================================
-
-    def optimize_budget(
-        self,
         breakdown
     ):
 
-        optimized = {}
+        if self.model is None:
 
+            return {
 
-        for category, amount in breakdown.items():
+                "food":
+                int(income * 0.15),
 
-            if category == "shopping":
+                "shopping":
+                int(income * 0.10),
 
-                optimized[category] = int(
-                    amount * 0.70
-                )
+                "entertainment":
+                int(income * 0.08),
 
+                "savings":
+                int(income * 0.30)
+            }
 
-            elif category == "entertainment":
+        features = [[
 
-                optimized[category] = int(
-                    amount * 0.75
-                )
+            income,
 
+            breakdown.get("food", 0),
 
-            elif category == "food":
+            breakdown.get(
+                "shopping",
+                0
+            ),
 
-                optimized[category] = int(
-                    amount * 0.90
-                )
+            breakdown.get(
+                "entertainment",
+                0
+            ),
 
+            breakdown.get("rent", 0),
 
-            else:
+            breakdown.get("travel", 0),
 
-                optimized[category] = amount
+            breakdown.get("gym", 0)
+        ]]
 
+        prediction = (
+            self.model.predict(
+                features
+            )[0]
+        )
 
-        return optimized
+        return {
 
+            "food":
+            int(prediction[0]),
 
-    # ===================================
-    # WARNING ENGINE
-    # ===================================
+            "shopping":
+            int(prediction[1]),
 
-    def detect_warnings(
+            "entertainment":
+            int(prediction[2]),
 
-        self,
-
-        income,
-
-        breakdown
-    ):
-
-        warnings = []
-
-
-        LIMITS = {
-
-            "shopping": 0.20,
-
-            "entertainment": 0.15,
-
-            "food": 0.18,
-
-            "travel": 0.20
+            "savings":
+            int(prediction[3])
         }
 
 
-        for category, amount in breakdown.items():
-
-            if category in LIMITS:
-
-                limit = (
-                    income *
-                    LIMITS[category]
-                )
-
-
-                if amount > limit:
-
-                    warnings.append(
-
-                        f"High spending on "
-                        f"{category}"
-                    )
-
-
-        return warnings
-
-
-    # ===================================
+    # =========================
     # AI INSIGHTS
-    # ===================================
+    # =========================
 
     def generate_insights(
-
         self,
-
         income,
-
-        savings,
-
+        spending,
         breakdown
     ):
 
         insights = []
 
-
-        if savings > income * 0.4:
-
-            insights.append(
-
-                "Excellent savings rate detected."
-            )
-
-
-        if (
-            "entertainment" in breakdown
-            and breakdown[
-                "entertainment"
-            ] > income * 0.15
-        ):
+        if spending > income * 0.8:
 
             insights.append(
-
-                "Entertainment spending is above recommended levels."
+                "High spending ratio detected."
             )
 
-
-        if (
-            "shopping" in breakdown
-            and breakdown[
-                "shopping"
-            ] > income * 0.20
-        ):
+        if breakdown.get(
+            "shopping",
+            0
+        ) > income * 0.2:
 
             insights.append(
-
-                "Shopping expenses can be optimized further."
+                "Shopping expenses are excessive."
             )
 
+        if breakdown.get(
+            "investment",
+            0
+        ) == 0:
+
+            insights.append(
+                "No investments detected."
+            )
 
         if len(insights) == 0:
 
             insights.append(
-
-                "Your financial habits look stable."
+                "Financial habits look stable."
             )
-
 
         return insights
 
 
-    # ===================================
-    # MONTHLY HISTORY
-    # ===================================
-
-    def generate_monthly_history(
-
-        self,
-
-        income,
-
-        total_spending
-    ):
-
-        history = []
-
-
-        monthly_spending = total_spending
-
-
-        for month in [
-
-            "Jan",
-            "Feb",
-            "Mar",
-            "Apr",
-            "May",
-            "Jun"
-        ]:
-
-            history.append({
-
-                "month": month,
-
-                "income": income,
-
-                "spending":
-                monthly_spending,
-
-                "savings":
-                income -
-                monthly_spending
-            })
-
-
-            monthly_spending = int(
-                monthly_spending * 1.03
-            )
-
-
-        return history
-
-
-    # ===================================
+    # =========================
     # TREE VISUALIZATION
-    # ===================================
+    # =========================
 
     def generate_tree(
-
         self,
-
         income,
-
         breakdown
     ):
 
-        nodes = []
-
-        edges = []
-
-
-        nodes.append({
-
+        nodes = [{
             "id": "income",
 
             "data": {
-
                 "label":
                 f"Income\n₹{income}"
             },
 
             "position": {
-
                 "x": 450,
-
                 "y": 0
-            },
-
-            "style": {
-
-                "background": "#2563eb",
-
-                "color": "white",
-
-                "padding": 15,
-
-                "borderRadius": 15
             }
-        })
+        }]
 
-
-        CATEGORY_COLORS = {
-
-            "food": "#16a34a",
-
-            "shopping": "#9333ea",
-
-            "entertainment": "#f59e0b",
-
-            "investment": "#0891b2",
-
-            "rent": "#dc2626",
-
-            "travel": "#ea580c",
-
-            "gym": "#0f766e",
-
-            "other": "#334155"
-        }
-
+        edges = []
 
         x = 100
-
 
         for category, amount in breakdown.items():
 
@@ -477,34 +260,15 @@ class OfflineFinanceAI:
                 "id": category,
 
                 "data": {
-
                     "label":
                     f"{category}\n₹{amount}"
                 },
 
                 "position": {
-
                     "x": x,
-
                     "y": 220
-                },
-
-                "style": {
-
-                    "background":
-                    CATEGORY_COLORS.get(
-                        category,
-                        "#334155"
-                    ),
-
-                    "color": "white",
-
-                    "padding": 12,
-
-                    "borderRadius": 14
                 }
             })
-
 
             edges.append({
 
@@ -521,140 +285,100 @@ class OfflineFinanceAI:
                 True
             })
 
-
             x += 220
 
-
         return {
-
             "nodes": nodes,
-
             "edges": edges
         }
 
 
-    # ===================================
+    # =========================
     # MAIN ANALYSIS
-    # ===================================
+    # =========================
 
     def analyze(
-
         self,
-
         income,
-
         expenses
     ):
 
         breakdown = (
-            self.generate_budget_breakdown(
+            self.generate_breakdown(
                 expenses
             )
         )
-
 
         total_spending = sum(
             breakdown.values()
         )
 
-
         savings = (
             income - total_spending
         )
-
 
         spending_ratio = (
             total_spending / income
         )
 
 
-        personality = (
-            self.detect_personality(
-
-                total_spending,
-
-                income
-            )
-        )
-
-
-        financial_score = (
-            self.calculate_financial_score(
-
+        ai_budget = (
+            self.predict_budget(
                 income,
-
-                spending_ratio,
-
-                savings
-            )
-        )
-
-
-        future_prediction = (
-            self.predict_future_spending(
-
-                total_spending
-            )
-        )
-
-
-        optimized_budget = (
-            self.optimize_budget(
                 breakdown
             )
         )
 
 
-        warnings = (
-            self.detect_warnings(
+        warnings = [
 
-                income,
+            f"Overspending in {k}"
 
-                breakdown
-            )
+            for k, v in breakdown.items()
+
+            if v > income * 0.2
+        ]
+
+
+        score = max(
+
+            100 -
+
+            int(
+                spending_ratio * 100
+            ),
+
+            10
         )
 
 
-        insights = (
-            self.generate_insights(
+        if score > 80:
 
-                income,
+            personality = "Smart Saver"
 
-                savings,
+        elif score > 60:
 
-                breakdown
-            )
-        )
+            personality = "Balanced"
 
+        elif score > 40:
 
-        monthly_history = (
-            self.generate_monthly_history(
+            personality = "Lifestyle Spender"
 
-                income,
+        else:
 
-                total_spending
-            )
-        )
-
-
-        tree = self.generate_tree(
-
-            income,
-
-            breakdown
-        )
+            personality = "High Risk Spender"
 
 
         return {
 
             "financial_score":
-            financial_score,
+            score,
 
             "personality":
             personality,
 
-            "future_prediction":
-            future_prediction,
+            "total_spending":
+            total_spending,
 
             "savings":
             savings,
@@ -668,18 +392,28 @@ class OfflineFinanceAI:
             "budget_breakdown":
             breakdown,
 
-            "optimized_budget":
-            optimized_budget,
+            "ai_budget":
+            ai_budget,
 
             "warnings":
             warnings,
 
             "insights":
-            insights,
+            self.generate_insights(
+                income,
+                total_spending,
+                breakdown
+            ),
 
-            "monthly_history":
-            monthly_history,
+            "future_prediction":
+            int(
+                total_spending *
+                1.10
+            ),
 
             "tree":
-            tree
+            self.generate_tree(
+                income,
+                breakdown
+            )
         }
